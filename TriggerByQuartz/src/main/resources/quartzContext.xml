@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mybatis-spring="http://mybatis.org/schema/mybatis-spring"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+		http://mybatis.org/schema/mybatis-spring http://mybatis.org/schema/mybatis-spring-1.2.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd">
+
+	<!-- 1.插入图书事件 -->
+	<!-- 自定义的定时插入事件需要包装到JobDetailBean 才能进行注册,应此对Dao层的依赖只能通过setter注入实现 -->
+	<bean id="bookInsJob" class="org.springframework.scheduling.quartz.JobDetailBean">
+		<property name="jobClass" value="com.atguigu.quartz.BookInsJob"/>
+		<property name="jobDataMap">
+			<map>
+				<entry key="bookMapper" value-ref="bookMapper"/>
+			</map>
+		</property>
+	</bean>
+	<!-- 组装定时任务,重点是配置cron表达式 -->
+	<bean id="bookInsTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="bookInsJob"/>
+		<!-- 秒,分,时,日,月,周天 -->
+		<!-- */3 * * * * ? 每分钟间隔3秒一次
+		     * * * * * ?   每秒一次
+		     10,20,30 * * * * ?  秒为10,20,30 执行一次
+		     10-30/2 * * * * ?  10-30秒间,每2秒一次 -->
+		<property name="cronExpression" value="*/3 * * * * ?"/>
+	</bean>
+	
+	<!-- 2.核查库存事件 -->
+	<bean id="storageChkJob" class="org.springframework.scheduling.quartz.JobDetailBean">
+		<property name="jobClass" value="com.atguigu.quartz.StorageCheckJob"/>
+		<property name="jobDataMap">
+			<map>
+				<entry key="storageMapper" value-ref="storageMapper"/>
+			</map>
+		</property>
+	</bean>
+	
+	<bean id="storChkTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail" ref="storageChkJob"/>
+		<property name="cronExpression" value="*/45 * * * * ?"/>
+	</bean>
+
+	<!-- 注册调度事件 -->
+	<bean id="schedulerFactory" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="bookInsTrigger"/>
+				<ref bean="storChkTrigger"/>
+			</list>
+		</property>
+	</bean>
+
+</beans>
